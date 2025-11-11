@@ -238,7 +238,7 @@ MAIN_LOOP:
     move.b  BUF, %d1
 
     /* 8. お題から「期待される文字」 (ExpectedChar) を %d0 に取得*/
-    lea.l   CURRENT_PROMPT_PTR, %a0
+    lea.l   CURRENT_DATA_PTR, %a0
     move.l  (%a0), %a0          /* %a0 = お題のアドレス (例: "hello")*/
     lea.l   CURRENT_CHAR_INDEX, %a1
     move.l  (%a1), %d2          /* %d2 = インデックス (例: 0)*/
@@ -259,7 +259,7 @@ MAIN_LOOP:
     move.l  (%a1), %d2          /* %d2 = 新しいインデックス (例: 1)*/
 
     /* 12. 単語を最後まで入力したかチェック*/
-    lea.l   CURRENT_PROMPT_PTR, %a0
+    lea.l   CURRENT_DATA_PTR, %a0
     move.l  (%a0), %a0          /* %a0 = お題のアドレス*/
     add.l   %d2, %a0            /* %a0 = お題のアドレス + 新インデックス*/
     move.b  (%a0), %d0          /* %d0 = 次の期待文字*/
@@ -272,7 +272,7 @@ WORD_COMPLETE:
     /* 13. お題ごとのタイマーを止める (必須)*/
     move.l  #SYSCALL_NUM_RESET_TIMER, %d0
     trap    #0
-    bra     NEXT_PROMPT_SETUP
+    bra     NEXT_DATA_SETUP
 
 /* --- (時間切れ時の処理) ---*/
 TIME_UP_FAILURE:
@@ -281,9 +281,9 @@ TIME_UP_FAILURE:
     .asciz "\r\nTime's Up! Next word...\r\n"
 .even
 
-NEXT_PROMPT_SETUP:
+NEXT_DATA_SETUP:
     /* 15. 次のお題を準備*/
-    bsr     DISPLAY_NEXT_PROMPT
+    bsr     DISPLAY_NEXT_DATA
     bra     MAIN_LOOP
 
 
@@ -916,13 +916,13 @@ DO_PUTSTRING:
 ** DISPLAY_NEXT_PROMPT:
 ** 次のお題をランダムに選び、表示し、お題タイマーをセットする
 *************************************************
-DISPLAY_NEXT_PROMPT:
+DISPLAY_NEXT_DATA:
     movem.l %d0-%d3/%a0-%a1, -(%SP)
     
-    /* 1. 乱数(0 ～ PROMPT_COUNT-1) を生成*/
+    /* 1. 乱数(0 ～ DATA_COUNT-1) を生成*/
     move.w  TCN1, %d0       /* 乱数の素*/
     andi.l  #0x0000FFFF, %d0
-    move.l  PROMPT_COUNT, %d1
+    move.l  DATA_COUNT, %d1
     divu.w  %d1, %d0        /* %d0 = [余り | 商]*/
     swap    %d0             /* %d0 = [商 | 余り]*/
     andi.l  #0x0000FFFF, %d0 /* %d0 = 余り (お題のインデックス)*/
@@ -932,7 +932,7 @@ DISPLAY_NEXT_PROMPT:
     lea.l   PROMPT_LIST, %a0
     adda.l  %d0, %a0        /* %a0 = PROMPT_LIST[インデックス] のアドレス*/
     move.l  (%a0), %a1      /* %a1 = お題のアドレス (例: "hello" のアドレス)*/
-    move.l  %a1, CURRENT_PROMPT_PTR
+    move.l  %a1, CURRENT_DATA_PTR
     
     /* 3. お題の長さを計算*/
     clr.l   %d3             /* %d3 = length*/
@@ -966,7 +966,7 @@ LEN_CALC_DONE:
 .even
     move.l  #SYSCALL_NUM_PUTSTRING, %d0
     move.l  #0, %d1
-    move.l  CURRENT_PROMPT_PTR, %d2 /* p = お題のアドレス*/
+    move.l  CURRENT_DATA_PTR, %d2 /* p = お題のアドレス*/
     /* %d3 は length (計算済み)*/
     trap    #0
 

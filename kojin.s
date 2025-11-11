@@ -65,6 +65,71 @@ SYS_STK:
 	.ds.b 0x4000	/* システムスタック領域 */
 	.even 
 	SYS_STK_TOP: /*| システムスタック領域の最後尾 */
+	TOTAL_SECONDS:
+    .ds.l 1     /* 総合経過時間 (秒) (注: TOTAL_SECOND ではなく SECONDS)*/
+TIME_BUF:
+    .ds.b 8     /* "00:00" 用バッファ*/
+
+CURRENT_PROMPT_PTR:
+    .ds.l 1     /* 現在のお題のアドレス (注: CURRENT_DATA_PTR ではなく)*/
+CURRENT_CHAR_INDEX:
+    .ds.l 1     /* 次に打つべき文字のインデックス*/
+
+WORD_TIMER_FLAG:
+    .ds.b 1     /* お題ごとのタイマーフラグ (0: 測定中, 1: 時間切れ)*/
+
+
+****************************************************************
+*** 初期値のあるデータ領域
+***************************************************************
+
+
+START_MSG:
+	.ascii "Typing Test Start!!\n"
+NEXT_LINE:	
+	.ascii "\n"
+
+DATA1:
+	.ascii "hello"
+.even
+DATA2:
+	.ascii "world"
+.even
+DATA3:
+	.ascii "suizu"
+.even
+DATA4:
+	.ascii "hajime"
+.even
+
+
+DATA_POINTA:
+	.dc.l DATA1
+	.dc.l DATA2
+	.dc.l DATA3
+	.dc.l DATA4
+.even
+
+DATA_NUMBER:
+	.dc.l 4
+.even
+
+
+TIME_UP_MSG:
+	.ascii "\nTime Up! Next!!\n"
+.even
+
+
+START_MSG:
+    .ascii "Typing Practice Start!\r\n"
+.even
+TIME_MSG:
+    .ascii "Total Time: 00:00\r\n"
+.even
+PROMPT_PREFIX:
+    .asciz "\r\nType: "
+.even
+	
 ********************
 ** PUT/GETSTRING用変数の確保 
 ********************
@@ -266,100 +331,6 @@ NEXT_PROMPT_SETUP:
     bsr     DISPLAY_NEXT_PROMPT
     bra     GAME_LOOP
 
-	
-	
-
-
-	
-****************************************************************
-*** 初期値のあるデータ領域
-****************************************************************
-.section .data
-TMSG:
-.ascii "******\r\n" /* \r: 行頭へ (キャリッジリターン) */
-.even /* \n: 次の行へ (ラインフィード) */
-TTC:
-.dc.w 0
-.even
-
-
-START_MSG:
-	.ascii "Typing Test Start!!\n"
-NEXT_LINE:	
-	.ascii "\n"
-
-DATA1:
-	.ascii "hello"
-.even
-DATA2:
-	.ascii "world"
-.even
-DATA3:
-	.ascii "suizu"
-.even
-DATA4:
-	.ascii "hajime"
-.even
-
-
-DATA_POINTA:
-	.dc.l DATA1
-	.dc.l DATA2
-	.dc.l DATA3
-	.dc.l DATA4
-.even
-
-DATA_NUMBER:
-	.dc.l 4
-.even
-
-
-TIME_UP_MSG:
-	.ascii "\nTime Up! Next!!\n"
-.even
-
-
-START_MSG:
-    .ascii "Typing Practice Start!\r\n"
-.even
-TIME_MSG:
-    .ascii "Total Time: 00:00\r\n"
-.even
-PROMPT_PREFIX:
-    .asciz "\r\nType: "
-.even
-	
-****************************************************************
-*** 初期値の無いデータ領域
-****************************************************************
-.section .bss
-BUF:
-.ds.b 256 /* BUF[256] */
-.even
-USR_STK:
-.ds.b 0x4000 /* ユーザスタック領域 */
-.even
-USR_STK_TOP: /* ユーザスタック領域の最後尾 */
-
-
-
-TOTAL_SECOND:
-	.ds.l 1
-.even
-TIME_BUF:
-	.ds.b 8
-.even
-SCORE_BUF:
-	.ds.b 12
-
-CURRENT_DATA_PTR:
-	.ds.l 1
-CURRENT_CHAR_INDEX:
-	.ds.l 1
-
-WORD_TIMER_FLAG:
-	.ds.b 1
-	
 
 .section .text
 .even
@@ -763,6 +734,164 @@ timer1_interrupt:
     * 全てのレジスタをスタックから復帰
     movem.l (%SP)+, %D0-%D7/%A0-%A6
     rte                     /* 割り込みから復帰 */
+
+
+.section .text
+.even
+
+/* (1) 総合時間 (mm:ss) を計るコールバック (MAINから起動) */
+TIMER_1SEC_CALLBACK:
+    movem.l %d0-%d7/%a0-%a6,-(%SP)   /* レジスタ退避 */
+    lea.l   TOTAL_SECONDS, %a0
+    addq.l  #1, (%a0)
+    bsr     UPDATE_TIMER_DISPLAY
+    movem.l (%SP)+,%D0-%d7/%a0-%a6   /* レジスタ復帰 */
+    rts
+
+/* (2) お題ごとの制限時間を計るコールバック (DISPLAY_NEXT_PROMPTから起動) */
+WORD_TIMER_CALLBACK:
+    movem.l %a0, -(%SP)
+    lea.l   WORD_TIMER_FLAG, %a0
+    move.b  #1, (%a0)           /* 時間切れフラグを立てる */
+    movem.l (%SP)+, %a0
+    rts
+
+/* (3) bsr の直後の .asciz 文字列を表示する */
+PUTSTRING_CALL_LIB:
+    move.l  (%sp), %a0      /* 戻り先アドレス(文字列の先頭)を %a0 に取得 */
+    move.l  %a0, %d2        /* %d2 = p (文字列のアドレス) */
+    clr.l   %d3             /* %d3 = size */
+COUNT_LEN:
+    cmp.b   #0, (%a0)+      /* ヌル文字か？ */
+    beq     DO_PUTSTRING
+    addq.l  #1, %d3
+    bra     COUNT_LEN
+DO_PUTSTRING:
+    move.l  (%sp), %a0
+    add.l   %d3, %a0
+    addq.l  #1, %a0         /* +1 (ヌル文字分) */
+    move.l  %a0, (%sp)      /* スタック上の戻り先を更新 */
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    trap    #0
+    rts
+
+/* (4) 次のお題を表示し、タイマーをセットする */
+DISPLAY_NEXT_PROMPT:
+    movem.l %d0-%d3/%a0-%a1, -(%SP)
+    move.w  TCN1, %d0       /* 乱数の素 */
+    andi.l  #0x0000FFFF, %d0
+    move.l  PROMPT_COUNT, %d1
+    divu.w  %d1, %d0        /* %d0 = [余り | 商] */
+    swap    %d0             /* %d0 = [商 | 余り] */
+    andi.l  #0x0000FFFF, %d0 /* %d0 = 余り (お題のインデックス) */
+    mulu.w  #4, %d0         /* インデックス * 4 (ポインタサイズ) */
+    lea.l   PROMPT_LIST, %a0
+    adda.l  %d0, %a0        /* %a0 = PROMPT_LIST[インデックス] のアドレス */
+    move.l  (%a0), %a1      /* %a1 = お題のアドレス (例: "hello" のアドレス) */
+    move.l  %a1, CURRENT_PROMPT_PTR
+    clr.l   %d3             /* %d3 = length */
+    move.l  %a1, %a0
+COUNT_LEN_LOOP:
+    cmp.b   #0, (%a0)+
+    beq     LEN_CALC_DONE
+    addq.l  #1, %d3
+    bra     COUNT_LEN_LOOP
+LEN_CALC_DONE:
+    move.l  %d3, %d1
+    mulu.w  #8000, %d1      /* 1文字 0.8秒 */
+    move.l  #SYSCALL_NUM_SET_TIMER, %d0
+    move.l  #WORD_TIMER_CALLBACK, %d2
+    trap    #0
+    lea.l   WORD_TIMER_FLAG, %a0
+    move.b  #0, (%a0)       /* 時間切れフラグを 0 に */
+    lea.l   CURRENT_CHAR_INDEX, %a0
+    move.l  #0, (%a0)       /* 文字インデックスを 0 に */
+    bsr     PUTSTRING_CALL_LIB
+    .asciz "\r\nType: "
+.even
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    move.l  CURRENT_PROMPT_PTR, %d2
+    trap    #0
+    movem.l (%SP)+, %d0-%d3/%a0-%a1
+    rts
+
+/* (5) 総合時間 (mm:ss) を表示更新する */
+UPDATE_TIMER_DISPLAY:
+    movem.l %d0-%d3/%a0-%a1, -(%SP)
+    bsr     PUTSTRING_CALL_LIB
+    .asciz "\rTotal Time: "
+.even
+    lea.l   TOTAL_SECONDS, %a0
+    move.l  (%a0), %d0      /* %d0 = 合計秒数 */
+    move.w  #60, %d1
+    divu.w  %d1, %d0        /* %d0 = [余り(ss) | 商(mm)] */
+    swap    %d0             /* %d0 = [商(mm) | 余り(ss)] */
+    move.l  %d0, %d1
+    andi.l  #0x0000FFFF, %d1 /* %d1 = 余り(ss) */
+    swap    %d0             /* %d0 = 商(mm) */
+    andi.l  #0x0000FFFF, %d0
+    lea.l   TIME_BUF, %a0
+    bsr     NUM_TO_STR_2DIGIT /* %d0(mm) -> TIME_BUF */
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    move.l  #TIME_BUF, %d2
+    move.l  #2, %d3         /* size = 2 */
+    trap    #0
+    bsr     PUTSTRING_CALL_LIB
+    .asciz ":"
+.even
+    move.l  %d1, %d0        /* %d0 = ss */
+    lea.l   TIME_BUF, %a0
+    bsr     NUM_TO_STR_2DIGIT /* %d0(ss) -> TIME_BUF */
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    move.l  #TIME_BUF, %d2
+    move.l  #2, %d3         /* size = 2 */
+    trap    #0
+    bsr     PUTSTRING_CALL_LIB
+    .asciz "\r\nType: "
+.even
+    lea.l   CURRENT_PROMPT_PTR, %a0
+    move.l  (%a0), %d2      /* %d2 = お題のアドレス */
+    lea.l   CURRENT_CHAR_INDEX, %a0
+    move.l  (%a0), %d3      /* %d3 = size (現在までのインデックス) */
+    cmp.l   #0, %d3
+    beq     UPDATE_TIMER_END /* まだ入力がなければ何もしない */
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    trap    #0
+UPDATE_TIMER_END:
+    movem.l (%SP)+, %d0-%d3/%a0-%a1
+    rts
+    
+/* (6) 2桁の数値をASCIIに変換する */
+NUM_TO_STR_2DIGIT:
+    move.l  %d0, %d1
+    move.w  #10, %d0
+    divu.w  %d0, %d1        /* %d1 = [余り(1の位) | 商(10の位)] */
+    swap    %d1
+    andi.l  #0x0000FFFF, %d1 /* %d1 = 商 (10の位) */
+    add.b   #0x30, %d1      /* '0' */
+  S move.b  %d1, (%a0)+
+    swap    %d1             /* %d1 = [ 0 | 余り(1の位) ] */
+    andi.l  #0x0000FFFF, %d1
+    add.b   #0x30, %d1      /* '0' */
+    move.b  %d1, (%a0)
+  t rts
+
+/* (7) BUF の1文字をエコーバックする */
+ECHO_CHAR_BUF:
+    movem.l %d0-%d3, -(%SP)
+    move.l  #SYSCALL_NUM_PUTSTRING, %d0
+    move.l  #0, %d1
+    move.l  #BUF, %d2
+    move.l  #1, %d3
+  t trap    #0
+    movem.l (%SP)+, %d0-%d3
+    rts
+
 
 *************************************************
 * PUTSTRING_CALL_LIB:

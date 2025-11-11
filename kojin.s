@@ -101,8 +101,8 @@ task_p:
 ** その理由を知るには，付録 B にある各レジスタの仕様を参照すること． 
 ***************************************************************
 
-	.section .text
-	.even
+.section .text
+.even
 boot: /* スーパーバイザ & 各種設定を行っている最中の割込禁止 */
 	move.w #0x2700,%SR
 	lea.l SYS_STK_TOP, %SP /* | Set SSP */
@@ -148,9 +148,9 @@ InitLoop:
                         **タイマ使用停止
 
 						
-	* TRAP #0 ハンドラをベクタテーブルに登録
+	/* TRAP #0 ハンドラをベクタテーブルに登録*/
 	move.l	#TRAP0_HANDLER, 0x0080
-	* TRAP 0 (ベクタ番号 32) のアドレスにハンドラを設定 
+	/* TRAP 0 (ベクタ番号 32) のアドレスにハンドラを設定*/ 
 	/* UART1 割り込み(レベル4, ベクタ68) ハンドラを設定 */
     /* ( IVR 0x40 + Level 4 = 0x44 (68), Address 68 * 4 = 0x110 ) */
     move.l  #send_or_receive, 0x110
@@ -198,25 +198,29 @@ MAIN:
 
 
 MAIN_START:
+	/* 1. 変数の初期化 */
 	lea.l   TOTAL_SECONDS, %a0
     move.l  #0, (%a0)           
 
-
+	/* 2. 開始メッセージと初期UIの表示 */
     bsr     PUTSTRING_CALL_LIB 
     .asciz "Typing Practice Start!\r\n"
 .even
     bsr     PUTSTRING_CALL_LIB 
     .asciz "Total Time: 00:00\r\n"
 .even
-    
+
+	/* 3. 総合1秒タイマーを開始 */
     move.l  #SYSCALL_NUM_SET_TIMER, %d0
     move.w  #10000, %d1        
     move.l  #TIMER_1SEC_CALLBACK, %d2
     trap    #0
-
+	
+	/* 4. 最初のお題を表示 */
     bsr     DISPLAY_NEXT_PROMPT
 
 MAIN_LOOP:
+	/* 5. 時間切れを先にチェック */
     lea.l   WORD_TIMER_FLAG, %a0
     cmp.b   #1, (%a0)
     beq     TIME_UP_FAILURE     /*時間切れなら失敗処理へ*/
@@ -243,7 +247,7 @@ MAIN_LOOP:
 
     /* 9. 答え合わせ*/
     cmp.b   %d1, %d0
-    bne     GAME_LOOP           /* ★不正解: 何もせず、次の入力を待つ*/
+    bne     MAIN_LOOP           /* ★不正解: 何もせず、次の入力を待つ*/
 
 /* --- (正解時の処理) ---*/
     /* 10. 正解の文字を画面に表示*/
@@ -261,7 +265,7 @@ MAIN_LOOP:
     move.b  (%a0), %d0          /* %d0 = 次の期待文字*/
     
     cmp.b   #0, %d0             /* 次の文字がヌル文字(0x00)か？*/
-    bne     GAME_LOOP           /* 違えば: 単語はまだ続く (ループ)*/
+    bne     MAIN_LOOP           /* 違えば: 単語はまだ続く (ループ)*/
 
 /* --- (単語完成時の処理) ---*/
 WORD_COMPLETE:
@@ -280,7 +284,7 @@ TIME_UP_FAILURE:
 NEXT_PROMPT_SETUP:
     /* 15. 次のお題を準備*/
     bsr     DISPLAY_NEXT_PROMPT
-    bra     GAME_LOOP
+    bra     MAIN_LOOP
 
 
 .section .text
@@ -343,25 +347,25 @@ TRAP0_HANDLER:
 	bra		TRAP0_EXIT				/* どのサービス番号にも一致しない場合、終了へ進む。*/
 
 SYSCALL_GETSTRING:
-	* GETSTRING(ch=0, p=%D2, size=%D3)
+	/* GETSTRING(ch=0, p=%D2, size=%D3)*/
 	move.l	#GETSTRING, %d0
 	jsr		GETSTRING				/* GETSTRING を呼び出す。*/
 	bra		TRAP0_EXIT
 	
 SYSCALL_PUTSTRING:
-	* PUTSTRING(ch=0, p=%D2, size=%D3)
+	/* PUTSTRING(ch=0, p=%D2, size=%D3)*/
 	move.l	#PUTSTRING, %d0
 	jsr		PUTSTRING				/* PUTSTRING を呼び出す。*/
 	bra		TRAP0_EXIT
 
 SYSCALL_RESET_TIMER:
-	* RESET_TIMER()
+	/* RESET_TIMER()*/
 	move.l	#RESET_TIMER, %d0
 	jsr		RESET_TIMER				/* RESET_TIMER を呼び出す。*/
 	bra		TRAP0_EXIT
 	
 SYSCALL_SET_TIMER:
-	* SET_TIMER(t=%D1, p=%D2)
+	/* SET_TIMER(t=%D1, p=%D2)*/
 	move.l	#SET_TIMER, %d0
 	jsr		SET_TIMER				/* SET_TIMER を呼び出す。*/
 	bra		TRAP0_EXIT
@@ -689,6 +693,7 @@ timer1_interrupt:
 ****************************************************************
 *** 初期値のあるデータ領域
 ***************************************************************
+.section .data
 
 DATA1:
 	.ascii "hello"
@@ -716,14 +721,6 @@ DATA_NUMBER:
 .even
 
 
-TIME_UP_MSG:
-	.ascii "\nTime Up! Next!!\n"
-.even
-
-
-START_MSG:
-    .ascii "Typing Practice Start!\r\n"
-.even
 TIME_MSG:
     .ascii "Total Time: 00:00\r\n"
 .even
@@ -873,12 +870,12 @@ NUM_TO_STR_2DIGIT:
     swap    %d1
     andi.l  #0x0000FFFF, %d1 /* %d1 = 商 (10の位) */
     add.b   #0x30, %d1      /* '0' */
-  S move.b  %d1, (%a0)+
+    move.b  %d1, (%a0)+
     swap    %d1             /* %d1 = [ 0 | 余り(1の位) ] */
     andi.l  #0x0000FFFF, %d1
     add.b   #0x30, %d1      /* '0' */
     move.b  %d1, (%a0)
-  t rts
+    rts
 
 /* (7) BUF の1文字をエコーバックする */
 ECHO_CHAR_BUF:
@@ -887,7 +884,7 @@ ECHO_CHAR_BUF:
     move.l  #0, %d1
     move.l  #BUF, %d2
     move.l  #1, %d3
-  t trap    #0
+    trap    #0
     movem.l (%SP)+, %d0-%d3
     rts
 
@@ -897,19 +894,19 @@ ECHO_CHAR_BUF:
 * bsr の直後に .asciz で定義された文字列を PUTSTRING で表示する
 *************************************************
 PUTSTRING_CALL_LIB:
-    move.l  (%sp), %a0      ; 戻り先アドレス(文字列の先頭)を %a0 に取得
-    move.l  %a0, %d2        ; %d2 = p (文字列のアドレス)
-    clr.l   %d3             ; %d3 = size
+    move.l  (%sp), %a0      /* 戻り先アドレス(文字列の先頭)を %a0 に取得*/
+    move.l  %a0, %d2        /* %d2 = p (文字列のアドレス)*/
+    clr.l   %d3             /* %d3 = size*/
 COUNT_LEN:
-    cmp.b   #0, (%a0)+      ; ヌル文字か？
+    cmp.b   #0, (%a0)+      /* ヌル文字か？*/
     beq     DO_PUTSTRING
     addq.l  #1, %d3
     bra     COUNT_LEN
 DO_PUTSTRING:
     move.l  (%sp), %a0
     add.l   %d3, %a0
-    addq.l  #1, %a0         ; +1 (ヌル文字分)
-    move.l  %a0, (%sp)      ; スタック上の戻り先を更新
+    addq.l  #1, %a0         /* +1 (ヌル文字分)*/
+    move.l  %a0, (%sp)      /* スタック上の戻り先を更新*/
     move.l  #SYSCALL_NUM_PUTSTRING, %d0
     move.l  #0, %d1
     trap    #0

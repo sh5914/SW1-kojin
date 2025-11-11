@@ -148,13 +148,13 @@ InitLoop:
 	move.l	#TRAP0_HANDLER, 0x0080
 	
 	/* UART1 割り込み(レベル4, ベクタ68) ハンドラを設定 */
-	move.l  #send_or_receive, 0x110
+	move.l	#send_or_receive, 0x110
     
     /* タイマ1 割り込み(レベル6, ベクタ70) ハンドラを設定 */
-	move.l  #timer1_interrupt, 0x118
+	move.l	#timer1_interrupt, 0x118
     
     /* UART(レベル4)とタイマ(レベル6)の割り込みマスクをIMRで解除 */
-	andi.l  #0xfffffff9, IMR /* (bit 2=UART1, bit 1=Timer1 を 0 に) */
+	andi.l	#0xfffffff9, IMR /* (bit 2=UART1, bit 1=Timer1 を 0 に) */
 	
 	bra INIT
 ******************
@@ -167,7 +167,7 @@ INIT:
 	move.w	#0x2000, %SR
 
     /* UART 割り込み許可（送受信割り込みON） */
-	move.w  #0xE10C, USTCNT1
+	move.w	#0xE10C, USTCNT1
 
 
 ****************************************************************
@@ -183,21 +183,21 @@ MAIN:
 GAME_START:
 	/* 1. 変数の初期化 */
 	lea.l	TOTAL_SECONDS, %a0
-	move.l  #0, (%a0)		/* 経過時間 = 0 */
+	move.l	#0, (%a0)		/* 経過時間 = 0 */
 
 	/* 2. 開始メッセージと初期UIの表示 */
-	bsr	PUTSTRING_CALL_LIB 
-	.asciz "Typing Practice Start!\r\n"
+	bsr	PUTSTRING_CALL_LIB
+	.asciz	"Typing Practice Start!\r\n"
 .even
-	bsr	PUTSTRING_CALL_LIB 
-	.asciz "Total Time: 00:00\r\n"
+	bsr	PUTSTRING_CALL_LIB
+	.asciz	"Total Time: 00:00\r\n"
 .even
     
     /* 3. 総合1秒タイマーを開始 */
-	move.l  #SYSCALL_NUM_SET_TIMER, %d0
-	move.w  #10000, %d1		/* t = 10000 * 0.1ms = 1s */
-	move.l  #TIMER_1SEC_CALLBACK, %d2
-	trap    #0
+	move.l	#SYSCALL_NUM_SET_TIMER, %d0
+	move.w	#10000, %d1		/* t = 10000 * 0.1ms = 1s */
+	move.l	#TIMER_1SEC_CALLBACK, %d2
+	trap	#0
 
     /* 4. 最初のお題を表示 */
 	bsr	DISPLAY_NEXT_DATA
@@ -209,24 +209,24 @@ MAIN_LOOP:
 	beq	TIME_UP_FAILURE		/* 時間切れなら失敗処理へ */
 
     /* 6. 1文字入力を待つ */
-	move.l  #SYSCALL_NUM_GETSTRING, %d0
-	move.l  #0, %d1
-	move.l  #BUF, %d2		/* 1文字用のバッファ */
-	move.l  #1, %d3			/* size = 1 */
-	trap    #0
+	move.l	#SYSCALL_NUM_GETSTRING, %d0
+	move.l	#0, %d1
+	move.l	#BUF, %d2		/* 1文字用のバッファ */
+	move.l	#1, %d3			/* size = 1 */
+	trap	#0
 	cmp.l	#1, %d0			/* 1文字入力されたか？ */
 	bne	MAIN_LOOP		/* されてなければ無視 (ループ) */
 
     /* 7. 入力された文字 (UserInput) を %d1 に取得 */
-	move.b  BUF, %d1
+	move.b	BUF, %d1
 
     /* 8. お題から「期待される文字」 (ExpectedChar) を %d0 に取得 */
 	lea.l	CURRENT_DATA_PTR, %a0
-	move.l  (%a0), %a0		/* %a0 = お題のアドレス */
+	move.l	(%a0), %a0		/* %a0 = お題のアドレス */
 	lea.l	CURRENT_CHAR_INDEX, %a1
-	move.l  (%a1), %d2		/* %d2 = インデックス */
+	move.l	(%a1), %d2		/* %d2 = インデックス */
 	add.l	%d2, %a0		/* %a0 = お題のアドレス + インデックス */
-	move.b  (%a0), %d0		/* %d0 = 期待される文字 */
+	move.b	(%a0), %d0		/* %d0 = 期待される文字 */
 
     /* 9. 答え合わせ */
 	cmp.b	%d1, %d0
@@ -238,14 +238,14 @@ MAIN_LOOP:
 
     /* 11. インデックスを1つ進める */
 	lea.l	CURRENT_CHAR_INDEX, %a1
-	addq.l  #1, (%a1)
-	move.l  (%a1), %d2		/* %d2 = 新しいインデックス */
+	addq.l	#1, (%a1)
+	move.l	(%a1), %d2		/* %d2 = 新しいインデックス */
 
     /* 12. 単語を最後まで入力したかチェック */
 	lea.l	CURRENT_DATA_PTR, %a0
-	move.l  (%a0), %a0		/* %a0 = お題のアドレス */
+	move.l	(%a0), %a0		/* %a0 = お題のアドレス */
 	add.l	%d2, %a0		/* %a0 = お題のアドレス + 新インデックス */
-	move.b  (%a0), %d0		/* %d0 = 次の期待文字 */
+	move.b	(%a0), %d0		/* %d0 = 次の期待文字 */
     
 	cmp.b	#0, %d0			/* 次の文字がヌル文字(0x00)か？ */
 	bne	MAIN_LOOP		/* 違えば: 単語はまだ続く (ループ) */
@@ -253,18 +253,18 @@ MAIN_LOOP:
 /* --- (単語完成時の処理) --- */
 WORD_COMPLETE:
     /* 13. お題ごとのタイマーを止める (必須) */
-	move.l  #SYSCALL_NUM_RESET_TIMER, %d0
-	trap    #0
+	move.l	#SYSCALL_NUM_RESET_TIMER, %d0
+	trap	#0
 	bra	NEXT_PROMPT_SETUP
 
 /* --- (時間切れ時の処理) --- */
 TIME_UP_FAILURE:
     /* 14. 失敗メッセージを表示 */
 	bsr	PUTSTRING_CALL_LIB
-	.asciz "\r\nTime's Up! Next word...\r\n"
+	.asciz	"\r\nTime's Up! Next word...\r\n"
 .even
 
-NEXT_DATA_SETUP:
+NEXT_PROMPT_SETUP:
     /* 15. 次のお題を準備 */
 	bsr	DISPLAY_NEXT_DATA
 	bra	MAIN_LOOP
@@ -404,20 +404,20 @@ GET_BUF_Finish:
 /* INTERPUT */
 INTERPUT:
 	movem.l	 %a0-%a2/%d0,-(%sp)	/*レジスタ退避*/
-	ori.w  #0x0700,%SR		/* (1) 割り込み禁止（走行レベルを7に） */
-	cmp.l #0,%d1
-	bne  END_of_INTERPUT		/* (2) chが0でないならば，何もせずに復帰 */
-	move.l  #1,%d0			/* (3) OUTQ(1,data) を実行する */
-	jsr  OUTQ
-	cmp.l #0,%d0
-	beq MASK			/* (4) OUTQの戻り値が0(失敗)ならば，マスクして復帰 */
-	move.l  %d1,%d0			/* (5) dataを送信レジスタUTX1に代入して送信 */
-	andi.l  #0x000000ff, %d0
-	add.l   #0x0800,%d0		/* ヘッダの付与 */
-	move.w  %d0,UTX1
-	bra    END_of_INTERPUT
+	ori.w	#0x0700,%SR		/* (1) 割り込み禁止（走行レベルを7に） */
+	cmp.l	#0,%d1
+	bne	END_of_INTERPUT		/* (2) chが0でないならば，何もせずに復帰 */
+	move.l	#1,%d0			/* (3) OUTQ(1,data) を実行する */
+	jsr	OUTQ
+	cmp.l	#0,%d0
+	beq	MASK			/* (4) OUTQの戻り値が0(失敗)ならば，マスクして復帰 */
+	move.l	%d1,%d0			/* (5) dataを送信レジスタUTX1に代入して送信 */
+	andi.l	#0x000000ff, %d0
+	add.l	#0x0800,%d0		/* ヘッダの付与 */
+	move.w	%d0,UTX1
+	bra	END_of_INTERPUT
 MASK:
-	move.w #0xe108,USTCNT1		/* 送信割り込みのみ禁止 */
+	move.w	#0xe108,USTCNT1		/* 送信割り込みのみ禁止 */
 END_of_INTERPUT:	
 	movem.l	(%sp)+, %a0-%a2/%d0	/*レジスタ復帰*/
 	rts
@@ -425,56 +425,56 @@ END_of_INTERPUT:
 /* --- ★★★ クラッシュの原因だった PUTSTRING を修正 ★★★ --- */
 /* (グローバル変数 sz, i を使わない、再入可能なバージョン) */
 PUTSTRING:
-	movem.l	 %d1-%d3/%a0,-(%sp)	/* 使用するレジスタを退避 */
+	movem.l	%d1-%d3/%a0,-(%sp)	/* 使用するレジスタを退避 */
 	
 	/*(1) chが0でないならば，何もせずに復帰*/
-	cmp.l    #0,%d1			
-	bne      END_of_PUTSTRING
+	cmp.l	#0,%d1			
+	bne	END_of_PUTSTRING
 	
 	/*(2) sz <- 0 , i <- p*/
-	clr.l   %d0			/* %d0 を sz (カウント用) として使う */
-	move.l  %d2, %a0		/* %a0 を i (ポインタ) として使う */
+	clr.l	%d0			/* %d0 を sz (カウント用) として使う */
+	move.l	%d2, %a0		/* %a0 を i (ポインタ) として使う */
 	
 	/*(3) size = 0 ならば(10)へ*/
-	cmp.l    #0,%d3
- 	beq      sz_SET			/* (10)へ */
+	cmp.l	#0,%d3
+ 	beq	sz_SET			/* (10)へ */
 	
 loop_PUTSTRING:	
 	/*(4) sz = size ならば (9) へ*/
-	cmp.l    %d0,%d3
-	beq      UNMASK			/* sz == size ならアンマスクへ */
+	cmp.l	%d0,%d3
+	beq	UNMASK			/* sz == size ならアンマスクへ */
 	
 	/*(5) INQ(1,i) を実行 */
 	/* (INQは %d0, %d1 を引数に取るため、スタックで一時退避) */
-	move.l  %d0, -(%sp)		/* sz を退避 */
-	move.l  %d3, -(%sp)		/* size を退避 */
+	move.l	%d0, -(%sp)		/* sz を退避 */
+	move.l	%d3, -(%sp)		/* size を退避 */
     
-	move.l   #1,%d0			/* INQ引数 %d0 = no (チャンネル) */
-	move.b   (%a0)+,%d1		/* INQ引数 %d1 = data=p[i], %a0 (ポインタ) をインクリメント */
+	move.l	#1,%d0			/* INQ引数 %d0 = no (チャンネル) */
+	move.b	(%a0)+,%d1		/* INQ引数 %d1 = data=p[i], %a0 (ポインタ) をインクリメント */
 	
-	jsr 	 INQ
+	jsr 	INQ
 
-	move.l  (%sp)+, %d3		/* size を復帰 */
-	move.l  (%sp)+, %d0		/* sz を復帰 (INQの戻り値はここで上書き) */
+	move.l	(%sp)+, %d3		/* size を復帰 */
+	move.l	(%sp)+, %d0		/* sz を復帰 (INQの戻り値はここで上書き) */
 
 	/*(6) INQの復帰値が0(失敗)なら(9)へ*/
 	/* (INQは %d0 を 0 or 1 で返す) */
-	cmp.l    #0,%d0
-	beq      UNMASK
+	cmp.l	#0,%d0
+	beq	UNMASK
 
 	/*(7) sz++*/
-	addq.l   #1,%d0			/* sz++ */
+	addq.l	#1,%d0			/* sz++ */
 
 	/*(8) (4) へ*/
-	bra      loop_PUTSTRING
+	bra	loop_PUTSTRING
 
 /*(9) USTCNT1 を操作して送信割り込み許可 (アンマスク)*/
 UNMASK:
-	move.w #0xe10c,USTCNT1
+	move.w	#0xe10c,USTCNT1
 
 /*(10) %D0 <- sz*/
 sz_SET:
-    /* %d0 には既に sz が入っているので、何もしなくてよい */
+	/* %d0 には既に sz が入っているので、何もしなくてよい */
 END_of_PUTSTRING:	
 	movem.l	(%sp)+, %d1-%d3/%a0
 	rts
@@ -528,36 +528,36 @@ INTERGET_Finish:
 * RESET_TIMER ルーチン (タイマ停止 & 割り込み禁止)
 *----------------------------------------------------------------------
 RESET_TIMER:
-	move.l  #TCTL1, %A0        /* A0 に TCTL1 のアドレスをロード */
-	andi.w  #0xFFFE, (%A0)     /* タイマー停止 (TCTL1 Bit 0 'TEN' = 0) */
-	move.l  #IMR, %A0          /* A0 に IMR のアドレスをロード */
-	ori.l   #0x00000002, (%A0) /* IMR Bit 1 (Timer1) を 1 (マスク) に設定 */
-	move.w  #0x0000, TSTAT1   /* 保留中の割り込みフラグをクリア */
+	move.l	#TCTL1, %A0		/* A0 に TCTL1 のアドレスをロード */
+	andi.w	#0xFFFE, (%A0)		/* タイマー停止 (TCTL1 Bit 0 'TEN' = 0) */
+	move.l	#IMR, %A0		/* A0 に IMR のアドレスをロード */
+	ori.l	#0x00000002, (%A0)	/* IMR Bit 1 (Timer1) を 1 (マスク) に設定 */
+	move.w	#0x0000, TSTAT1		/* 保留中の割り込みフラグをクリア */
 	rts
 
 *----------------------------------------------------------------------
 * SET_TIMER ルーチン (タイマ設定 & 割り込み許可)
 *----------------------------------------------------------------------
 SET_TIMER:
-	move.l  #TCTL1, %A0        /* A0 に TCTL1 のアドレスをロード */
-	andi.w  #0xFFFE, (%A0)     /* タイマーを一旦停止 (安全のため) */
-	lea.l   task_p, %A0        /* A0 に task_p 変数のアドレスをロード */
-	move.l  %D2, (%A0)        /* task_p にコールバックのアドレス (%D2) を保存 */
-	move.w  #206, TPRER1      /* プリスケーラを 0.1ms 周期に設定 */
-	move.w  %D1, TCMP1        /* 割り込み発生時間を設定 */
-	move.w  #0x0000, TSTAT1   /* 古いフラグをクリア */
-	move.l  #IMR, %A0          /* A0 に IMR のアドレスをロード */
-	andi.l  #0xFFFFFFFD, (%A0) /* IMR Bit 1 (Timer1) を 0 (許可) に設定 */
-	move.w  #0x0015, TCTL1    /* タイマー起動 (IRQEN=1, FRR=1, TEN=1) */
+	move.l	#TCTL1, %A0		/* A0 に TCTL1 のアドレスをロード */
+	andi.w	#0xFFFE, (%A0)		/* タイマーを一旦停止 (安全のため) */
+	lea.l	task_p, %A0		/* A0 に task_p 変数のアドレスをロード */
+	move.l	%D2, (%A0)		/* task_p にコールバックのアドレス (%D2) を保存 */
+	move.w	#206, TPRER1		/* プリスケーラを 0.1ms 周期に設定 */
+	move.w	%D1, TCMP1		/* 割り込み発生時間を設定 */
+	move.w	#0x0000, TSTAT1		/* 古いフラグをクリア */
+	move.l	#IMR, %A0		/* A0 に IMR のアドレスをロード */
+	andi.l	#0xFFFFFFFD, (%A0)	/* IMR Bit 1 (Timer1) を 0 (許可) に設定 */
+	move.w	#0x0015, TCTL1		/* タイマー起動 (IRQEN=1, FRR=1, TEN=1) */
 	rts
 
 *----------------------------------------------------------------------
 * CALL_RP ルーチン (コールバック呼び出し)
 *----------------------------------------------------------------------
 CALL_RP:
-	lea.l   task_p, %A0        /* A0 に task_p 変数のアドレスをロード */
-	move.l  (%A0), %A0         /* A0 に task_p の中身 (コールバックアドレス) をロード */
-	jsr     (%A0)              /* コールバックルーチンを実行 */
+	lea.l	task_p, %A0		/* A0 に task_p 変数のアドレスをロード */
+	move.l	(%A0), %A0		/* A0 に task_p の中身 (コールバックアドレス) をロード */
+	jsr	(%A0)			/* コールバックルーチンを実行 */
 	rts
 
 *----------------------------------------------------------------------
@@ -565,14 +565,14 @@ CALL_RP:
 *----------------------------------------------------------------------
 timer1_interrupt:
 	movem.l %D0-%D7/%A0-%A6, -(%SP) /* 全てのレジスタをスタックに退避 */
-	move.w  TSTAT1, %D0
-	andi.w  #0x0001, %D0      /* Bit 0 (COMPフラグ) だけを取り出す */
-	beq     .L_TIMER_EXIT   /* Bit 0 が 0 なら（タイマー要因でないなら）終了 */
-	move.w  #0x0000, TSTAT1   /* フラグをクリア */
-	jsr     CALL_RP           /* コールバック呼び出し */
+	move.w	TSTAT1, %D0
+	andi.w	#0x0001, %D0		/* Bit 0 (COMPフラグ) だけを取り出す */
+	beq	.L_TIMER_EXIT		/* Bit 0 が 0 なら（タイマー要因でないなら）終了 */
+	move.w	#0x0000, TSTAT1		/* フラグをクリア */
+	jsr	CALL_RP			/* コールバック呼び出し */
 .L_TIMER_EXIT:
 	movem.l (%SP)+, %D0-%D7/%A0-%A6 /* 全てのレジスタをスタックから復帰 */
-	rte                     /* 割り込みから復帰 */
+	rte				/* 割り込みから復帰 */
 
 
 ****************************************************************
@@ -694,7 +694,7 @@ LEN_CALC_DONE:
 	lea.l	CURRENT_CHAR_INDEX, %a0
 	move.l	#0, (%a0)		/* 文字インデックスを 0 に */
 	bsr	PUTSTRING_CALL_LIB
-	.asciz "\r\nType: "
+	.asciz	"\r\nType: "
 .even
 	move.l	#SYSCALL_NUM_PUTSTRING, %d0
 	move.l	#0, %d1
@@ -707,7 +707,7 @@ LEN_CALC_DONE:
 UPDATE_TIMER_DISPLAY:
 	movem.l %d0-%d3/%a0-%a1, -(%SP)
 	bsr	PUTSTRING_CALL_LIB
-	.asciz "\rTotal Time: "
+	.asciz	"\rTotal Time: "
 .even
 	lea.l	TOTAL_SECONDS, %a0
 	move.l	(%a0), %d0		/* %d0 = 合計秒数 */
@@ -726,7 +726,7 @@ UPDATE_TIMER_DISPLAY:
 	move.l	 #2, %d3		/* size = 2 */
 	trap	 #0
 	bsr	PUTSTRING_CALL_LIB
-	.asciz ":"
+	.asciz	":"
 .even
 	move.l	 %d1, %d0		/* %d0 = ss */
 	lea.l	TIME_BUF, %a0
@@ -737,7 +737,7 @@ UPDATE_TIMER_DISPLAY:
 	move.l	#2, %d3			/* size = 2 */
 	trap	 #0
 	bsr	PUTSTRING_CALL_LIB
-	.asciz "\r\nType: "
+	.asciz	"\r\nType: "
 .even
 	lea.l	CURRENT_DATA_PTR, %a0	/* ★名前変更 */
 	move.l	 (%a0), %d2		/* %d2 = お題のアドレス */

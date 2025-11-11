@@ -65,6 +65,7 @@ SYS_STK:
 	.ds.b 0x4000	/* システムスタック領域 */
 	.even 
 	SYS_STK_TOP: /*| システムスタック領域の最後尾 */
+	
 TOTAL_SECONDS:
     .ds.l 1     /* 総合経過時間 (秒) (注: TOTAL_SECOND ではなく SECONDS)*/
 TIME_BUF:
@@ -77,8 +78,6 @@ CURRENT_CHAR_INDEX:
 
 WORD_TIMER_FLAG:
     .ds.b 1     /* お題ごとのタイマーフラグ (0: 測定中, 1: 時間切れ)*/
-
-
 
 
 
@@ -691,11 +690,6 @@ timer1_interrupt:
 *** 初期値のあるデータ領域
 ***************************************************************
 
-START_MSG:
-	.ascii "Typing Test Start!!\n"
-NEXT_LINE:	
-	.ascii "\n"
-
 DATA1:
 	.ascii "hello"
 .even
@@ -786,15 +780,15 @@ DISPLAY_NEXT_PROMPT:
     movem.l %d0-%d3/%a0-%a1, -(%SP)
     move.w  TCN1, %d0       /* 乱数の素 */
     andi.l  #0x0000FFFF, %d0
-    move.l  PROMPT_COUNT, %d1
+    move.l  DATA_NUMBER, %d1
     divu.w  %d1, %d0        /* %d0 = [余り | 商] */
     swap    %d0             /* %d0 = [商 | 余り] */
     andi.l  #0x0000FFFF, %d0 /* %d0 = 余り (お題のインデックス) */
     mulu.w  #4, %d0         /* インデックス * 4 (ポインタサイズ) */
-    lea.l   PROMPT_LIST, %a0
+    lea.l   DATA_POINTA, %a0
     adda.l  %d0, %a0        /* %a0 = PROMPT_LIST[インデックス] のアドレス */
     move.l  (%a0), %a1      /* %a1 = お題のアドレス (例: "hello" のアドレス) */
-    move.l  %a1, CURRENT_PROMPT_PTR
+    move.l  %a1, CURRENT_DATA_PTR
     clr.l   %d3             /* %d3 = length */
     move.l  %a1, %a0
 COUNT_LEN_LOOP:
@@ -817,7 +811,7 @@ LEN_CALC_DONE:
 .even
     move.l  #SYSCALL_NUM_PUTSTRING, %d0
     move.l  #0, %d1
-    move.l  CURRENT_PROMPT_PTR, %d2
+    move.l  CURRENT_DATA_PTR, %d2
     trap    #0
     movem.l (%SP)+, %d0-%d3/%a0-%a1
     rts
@@ -858,7 +852,7 @@ UPDATE_TIMER_DISPLAY:
     bsr     PUTSTRING_CALL_LIB
     .asciz "\r\nType: "
 .even
-    lea.l   CURRENT_PROMPT_PTR, %a0
+    lea.l   CURRENT_DATA_PTR, %a0
     move.l  (%a0), %d2      /* %d2 = お題のアドレス */
     lea.l   CURRENT_CHAR_INDEX, %a0
     move.l  (%a0), %d3      /* %d3 = size (現在までのインデックス) */

@@ -65,7 +65,7 @@ SYS_STK:
 	.ds.b 0x4000	/* システムスタック領域 */
 	.even 
 	SYS_STK_TOP: /*| システムスタック領域の最後尾 */
-	TOTAL_SECONDS:
+TOTAL_SECONDS:
     .ds.l 1     /* 総合経過時間 (秒) (注: TOTAL_SECOND ではなく SECONDS)*/
 TIME_BUF:
     .ds.b 8     /* "00:00" 用バッファ*/
@@ -79,57 +79,9 @@ WORD_TIMER_FLAG:
     .ds.b 1     /* お題ごとのタイマーフラグ (0: 測定中, 1: 時間切れ)*/
 
 
-****************************************************************
-*** 初期値のあるデータ領域
-***************************************************************
 
 
-START_MSG:
-	.ascii "Typing Test Start!!\n"
-NEXT_LINE:	
-	.ascii "\n"
 
-DATA1:
-	.ascii "hello"
-.even
-DATA2:
-	.ascii "world"
-.even
-DATA3:
-	.ascii "suizu"
-.even
-DATA4:
-	.ascii "hajime"
-.even
-
-
-DATA_POINTA:
-	.dc.l DATA1
-	.dc.l DATA2
-	.dc.l DATA3
-	.dc.l DATA4
-.even
-
-DATA_NUMBER:
-	.dc.l 4
-.even
-
-
-TIME_UP_MSG:
-	.ascii "\nTime Up! Next!!\n"
-.even
-
-
-START_MSG:
-    .ascii "Typing Practice Start!\r\n"
-.even
-TIME_MSG:
-    .ascii "Total Time: 00:00\r\n"
-.even
-PROMPT_PREFIX:
-    .asciz "\r\nType: "
-.even
-	
 ********************
 ** PUT/GETSTRING用変数の確保 
 ********************
@@ -277,7 +229,7 @@ MAIN_LOOP:
     move.l  #1, %d3             /*size = 1*/
     trap    #0
     cmp.l   #1, %d0             /*1文字入力されたか？*/
-    bne     GAME_LOOP           /*されてなければ無視 (ループ)*/
+    bne     MAIN_LOOP           /*されてなければ無視 (ループ)*/
 
     /* 7. 入力された文字 (UserInput) を %d1 に取得*/
     move.b  BUF, %d1
@@ -735,6 +687,59 @@ timer1_interrupt:
     movem.l (%SP)+, %D0-%D7/%A0-%A6
     rte                     /* 割り込みから復帰 */
 
+****************************************************************
+*** 初期値のあるデータ領域
+***************************************************************
+
+START_MSG:
+	.ascii "Typing Test Start!!\n"
+NEXT_LINE:	
+	.ascii "\n"
+
+DATA1:
+	.ascii "hello"
+.even
+DATA2:
+	.ascii "world"
+.even
+DATA3:
+	.ascii "suizu"
+.even
+DATA4:
+	.ascii "hajime"
+.even
+
+
+DATA_POINTA:
+	.dc.l DATA1
+	.dc.l DATA2
+	.dc.l DATA3
+	.dc.l DATA4
+.even
+
+DATA_NUMBER:
+	.dc.l 4
+.even
+
+
+TIME_UP_MSG:
+	.ascii "\nTime Up! Next!!\n"
+.even
+
+
+START_MSG:
+    .ascii "Typing Practice Start!\r\n"
+.even
+TIME_MSG:
+    .ascii "Total Time: 00:00\r\n"
+.even
+PROMPT_PREFIX:
+    .asciz "\r\nType: "
+.even
+TIME_UP_MSG:
+    .asciz "\r\nTime's Up! Next word...\r\n"
+.even
+
 
 .section .text
 .even
@@ -1074,25 +1079,7 @@ ECHO_CHAR_BUF:
 
 
 
-** (1) 総合時間 (mm:ss) を計るコールバック (MAINから起動)
-**
-TIMER_1SEC_CALLBACK:
-    movem.l %d0-%d7/%a0-%a6,-(%SP)   /* レジスタ退避*/
-    lea.l   TOTAL_SECONDS, %a0
-    addq.l  #1, (%a0)
-    bsr     UPDATE_TIMER_DISPLAY
-    movem.l (%SP)+,%D0-%D7/%a0-%a6   /* レジスタ復帰*/
-    rts
 
-
-** (2) お題ごとの制限時間を計るコールバック (DISPLAY_NEXT_PROMPTから起動)
-
-WORD_TIMER_CALLBACK:
-    movem.l %a0, -(%SP)
-    lea.l   WORD_TIMER_FLAG, %a0
-    move.b  #1, (%a0)           /* 時間切れフラグを立てる*/
-    movem.l (%SP)+, %a0
-    rts
 
 
 

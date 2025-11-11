@@ -264,7 +264,7 @@ TIME_UP_FAILURE:
 	.asciz "\r\nTime's Up! Next word...\r\n"
 .even
 
-NEXT_PROMPT_SETUP:
+NEXT_DATA_SETUP:
     /* 15. 次のお題を準備 */
 	bsr	DISPLAY_NEXT_DATA
 	bra	MAIN_LOOP

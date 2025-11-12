@@ -185,8 +185,9 @@ MAIN:
 	trap #0					/* 既存のタイマーをリセット */
 
 	move.w #0, SECONDS		/* 秒数カウンタを0に初期化 */
-	move.b #0, GAME_OVER_FLAG	/* ★追加: ゲームオーバーフラグをリセット */
-    move.l #SYSCALL_NUM_SET_TIMER, %D0
+	move.b #0, GAME_OVER_FLAG	/* ゲームオーバーフラグをリセット */
+
+	move.l #SYSCALL_NUM_SET_TIMER, %D0
 	move.w #10000, %D1		/* 10000 * 0.1ms = 1000ms = 1秒 */
 	move.l #TIMER_TICK, %D2	/* 1秒ごとに TIMER_TICK を呼び出す */
 	trap #0
@@ -859,8 +860,8 @@ SHOW_STATS:
 
 GAME_ENTRY_POINT:
 	move.l #0, GAME_LEVEL
-    move.l #0, TOTAL_CORRECT	/* ★追加: 正解カウンターをリセット */
-	move.l #0, TOTAL_ERROR		/* ★追加: 誤りカウンターをリセット */
+	move.l #0, TOTAL_CORRECT	/* ★修正: 正解カウンターをリセット */
+	move.l #0, TOTAL_ERROR		/* ★修正: 誤りカウンターをリセット */
 	bra TYPING_GAME_LOOP
 
 TYPING_GAME_LOOP:

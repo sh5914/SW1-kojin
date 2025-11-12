@@ -185,12 +185,8 @@ MAIN:
 	trap #0					/* 既存のタイマーをリセット */
 
 	move.w #0, SECONDS		/* 秒数カウンタを0に初期化 */
-
-	move.l #SYSCALL_NUM_SET_TIMER, %D0
-  move.w #0, SECONDS		/* 秒数カウンタを0に初期化 */
 	move.b #0, GAME_OVER_FLAG	/* ★追加: ゲームオーバーフラグをリセット */
-
-	move.l #SYSCALL_NUM_SET_TIMER, %D0
+    move.l #SYSCALL_NUM_SET_TIMER, %D0
 	move.w #10000, %D1		/* 10000 * 0.1ms = 1000ms = 1秒 */
 	move.l #TIMER_TICK, %D2	/* 1秒ごとに TIMER_TICK を呼び出す */
 	trap #0
@@ -824,20 +820,29 @@ SHOW_STATS:
 	move.l TOTAL_ERROR, %d0
 	jsr PRINT_DECIMAL
 
-	* 3. タイプスピード (Strokes Per Minute) を計算して表示
-	move.l #SYSCALL_NUM_PUTSTRING, %d0
-	move.l #0, %d1
-	move.l #MSG_STATS_SPEED, %d2
-	move.l #MSG_STATS_SPEED_LEN, %d3
+* 3. タイプスピード (Strokes Per Minute) を計算して表示
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #MSG_STATS_SPEED, %D2
+	move.l #MSG_STATS_SPEED_LEN, %D3
 	trap #0
 
 	move.w SECONDS, %d1			/* d1 = 合計秒数 (16-bit) */
 	cmpi.w #0, %d1				/* ゼロ除算を回避 */
 	beq .L_SKIP_SPEED
 	
-	move.w TOTAL_CORRECT, %d0	/* d0 = 正解数 (16-bit) */
-	mulu.w #60, %d0				/* d0.l = (正解数 * 60) */
+	* (★ここから修正)
+	* (正解数 * 60) を 32ビットで計算 (mulu.l がないためシフトで代用)
+	move.l TOTAL_CORRECT, %d0	/* d0 = 正解数 (32-bit) */
+	move.l %d0, %d2				/* d2 = 正解数 (コピー) */
+	
+	lsl.l #6, %d0				/* d0 = 正解数 * 64 */
+	lsl.l #2, %d2				/* d2 = 正解数 * 4 */
+	sub.l %d2, %d0				/* d0 = (正解数 * 64) - (正解数 * 4) = (正解数 * 60)
+	
+	* 32ビット / 16ビット の除算
 	divu.w %d1, %d0				/* d0.l = (正解数 * 60) / 秒数 */
+	* (d0 の上位16bitが余り、下位16bitが商)
 	
 	move.w %d0, %d0				/* d0.w (商) のみを .l にセット */
 	jsr PRINT_DECIMAL
@@ -854,7 +859,7 @@ SHOW_STATS:
 
 GAME_ENTRY_POINT:
 	move.l #0, GAME_LEVEL
-　move.l #0, TOTAL_CORRECT	/* ★追加: 正解カウンターをリセット */
+    move.l #0, TOTAL_CORRECT	/* ★追加: 正解カウンターをリセット */
 	move.l #0, TOTAL_ERROR		/* ★追加: 誤りカウンターをリセット */
 	bra TYPING_GAME_LOOP
 

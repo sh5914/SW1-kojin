@@ -267,13 +267,13 @@ MSG_FINISH_LEN: .equ . - MSG_FINISH
 BUF:
 .ds.b 256 /* BUF[256] */
 .even
-USR_STK:
-.ds.b 0x4000 /* ユーザスタック領域 */
-.even
 CURRENT_CHAR:
 	.ds.b 1				/* 現在タイプするべき文字 ('a'～'z') */
 PRINT_CHAR:
 	.ds.b 1				/* 画面に表示する1文字を格納するバッファ */
+USR_STK:
+.ds.b 0x4000 /* ユーザスタック領域 */
+.even
 USR_STK_TOP: /* ユーザスタック領域の最後尾 */
 
 

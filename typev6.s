@@ -751,20 +751,30 @@ SET_STAGE_4:
 SHOW_STAGE:
 	* --- 2. スタートメッセージと「お題」の表示 ---
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #MSG_START, %D2, move.l #MSG_START_LEN, %D3
+	move.l #0, %D1
+	move.l #MSG_START, %D2
+	move.l #MSG_START_LEN, %D3
 	trap #0
 	
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l %a2, %D2, move.l %d4, %D3	/* お題(%a2, %d4)を表示 */
+	move.l #0, %D1
+	move.l %a2, %D2				/* お題(%a2)を表示 */
+	move.l %d4, %D3				/* お題の長さ(%d4) */
 	trap #0
 	
 	* --- 2b. 改行 ---
 	move.b #0x0d, PRINT_CHAR
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #PRINT_CHAR, %D2, move.l #1, %D3, trap #0
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3
+	trap #0
 	move.b #0x0a, PRINT_CHAR
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #PRINT_CHAR, %D2, move.l #1, %D3, trap #0
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3
+	trap #0
 
 	* --- 3. ステージ内変数の初期化 ---
 	move.l #0, CURRENT_INDEX		/* 文字インデックスを 0 に */
@@ -773,7 +783,9 @@ TYPING_LOOP_NEXT_CHAR:
 	* --- 4. ユーザーの入力を待つ (ポーリング・ループ) ---
 WAIT_FOR_INPUT:
 	move.l #SYSCALL_NUM_GETSTRING, %D0
-	move.l #0, %D1, move.l #BUF, %D2, move.l #256, %D3
+	move.l #0, %D1
+	move.l #BUF, %D2
+	move.l #256, %D3
 	trap #0
 	
 	cmpi.l #0, %d0
@@ -794,7 +806,9 @@ WAIT_FOR_INPUT:
 	* --- 6a. 正解した文字をエコーバック ---
 	move.b %d5, PRINT_CHAR
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #PRINT_CHAR, %D2, move.l #1, %D3
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3
 	trap #0
 
 	* --- 6b. 次のインデックスに進める ---
@@ -810,7 +824,9 @@ WAIT_FOR_INPUT:
 STAGE_FINISHED:
 	* --- 7. ステージクリア処理 ---
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #MSG_STAGE_CLEAR, %D2, move.l #MSG_STAGE_CLEAR_LEN, %D3
+	move.l #0, %D1
+	move.l #MSG_STAGE_CLEAR, %D2
+	move.l #MSG_STAGE_CLEAR_LEN, %D3
 	trap #0
 	
 	move.l GAME_LEVEL, %d0
@@ -828,7 +844,9 @@ ALL_FINISHED:
 	trap #0							/* タイマーを停止 */
 
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1, move.l #MSG_ALL_CLEAR, %D2, move.l #MSG_ALL_CLEAR_LEN, %D3
+	move.l #0, %D1
+	move.l #MSG_ALL_CLEAR, %D2
+	move.l #MSG_ALL_CLEAR_LEN, %D3
 	trap #0
 	
 	move.l #0x0FFFFF, %d0
@@ -836,4 +854,4 @@ WAIT_LOOP:
 	subq.l #1, %d0
 	bne WAIT_LOOP
 	
-	bra MAIN						/* ゲームを最初からやり直す */
+	bra MAIN						/* タイトル (MAIN) に戻る */

@@ -185,9 +185,6 @@ MAIN:
 	trap #0					/* 既存のタイマーをリセット */
 
 	move.w #0, SECONDS		/* 秒数カウンタを0に初期化 */
-
-	move.l #SYSCALL_NUM_SET_TIMER, %D0
-  move.w #0, SECONDS		/* 秒数カウンタを0に初期化 */
 	move.b #0, GAME_OVER_FLAG	/* ★追加: ゲームオーバーフラグをリセット */
 
 	move.l #SYSCALL_NUM_SET_TIMER, %D0

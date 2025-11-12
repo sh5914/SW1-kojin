@@ -750,7 +750,17 @@ WAIT_FOR_INPUT:
 	cmp.b %d5, %d6					/* 入力(%d5)と正解(%d6)を比較 */
 	bne WAIT_FOR_INPUT		        /* 不正解なら、次の入力を待つ */
 
-	* --- 6. 正解した場合 ---
+* --- 6. 正解した場合 ---
+	
+	* --- 6a. (NEW) 正解した文字を画面に表示(エコーバック) ---
+	move.b %d5, PRINT_CHAR			/* 正解した文字(%d5)をバッファに入れる */
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3					/* 1文字だけ表示 */
+	trap #0
+
+	* --- 6b. 次のインデックスに進める ---
 	move.l CURRENT_INDEX, %d1		/* %d1 = 現在のインデックス */
 	addq.l #1, %d1					/* %d1 = 次のインデックス */
 	
@@ -759,7 +769,7 @@ WAIT_FOR_INPUT:
 	
 	* まだ続きがあるなら、次の文字へ
 	move.l %d1, CURRENT_INDEX		/* ★CURRENT_INDEX をインクリメント */
-	bra TYPING_LOOP_NEXT_CHAR       /* 次の文字のプロンプトを表示しに行く */
+	bra TYPING_LOOP_NEXT_CHAR       /* ★次の文字の処理へ移る */
 
 GAME_FINISHED:
 	* --- 7. 終了処理 ---

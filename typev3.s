@@ -687,55 +687,90 @@ timer1_interrupt:
 .section .text
 .even
 *----------------------------------------------------------------------
-* タイピングゲーム メインループ
+* タイピングゲーム メインループ (カスタム文字列版)
 *----------------------------------------------------------------------
 TYPING_GAME_LOOP:
-	* --- スタートメッセージ表示 ---
+	* --- 1. スタートメッセージ表示 ---
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
 	move.l #MSG_START, %D2
 	move.l #MSG_START_LEN, %D3
 	trap #0
 	
-	move.b #'a', CURRENT_CHAR		/* 最初の文字を 'a' にセット */
+	* --- 1b. ターゲット文字列の全体を表示 ---
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #TARGET_STRING, %D2
+	move.l #TARGET_LEN, %D3
+	trap #0
+	
+	* --- 1c. 改行してプロンプト開始の準備 ---
+	move.b #0x0d, PRINT_CHAR		/* \r (キャリッジリターン) */
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3
+	trap #0
+	move.b #0x0a, PRINT_CHAR		/* \n (ラインフィード) */
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #PRINT_CHAR, %D2
+	move.l #1, %D3
+	trap #0
+
+	* --- 2. 初期化 ---
+	move.l #0, CURRENT_INDEX		/* ★最初のインデックスを 0 にセット */
 
 TYPING_LOOP_NEXT_CHAR:
-	* --- 1. 現在の文字をプロンプトとして表示 ---
-	move.b CURRENT_CHAR, PRINT_CHAR	/* 表示用バッファにコピー */
+	* --- 3. 現在の文字をプロンプトとして表示 ---
+	lea.l TARGET_STRING, %a0		/* %a0 にターゲット文字列のベースアドレス */
+	move.l CURRENT_INDEX, %d1		/* %d1 に現在のインデックス */
+	move.b (%a0, %d1.l), PRINT_CHAR	/* ★PRINT_CHAR = TARGET_STRING[CURRENT_INDEX] */
+	
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
 	move.l #PRINT_CHAR, %D2
 	move.l #1, %D3					/* 1文字だけ表示 */
 	trap #0
 
-	* --- 2. ユーザーの入力を待つ ---
-WAIT_FOR_INPUT:	
+* --- 4. ユーザーの入力を待つ (ポーリング・ループ) ---
+WAIT_FOR_INPUT:
 	move.l #SYSCALL_NUM_GETSTRING, %D0
 	move.l #0, %D1
 	move.l #BUF, %D2
-	move.l #256, %D3				/* Enterが押されるまで待機 */
+	move.l #256, %D3
 	trap #0
-	* %D0 に入力文字数が入る
 	
-	* --- 3. 入力チェック ---
-	cmpi.l #0, %d0					/* 何も入力されなかったらやり直し */
-	beq WAIT_FOR_INPUT
+	cmpi.l #0, %d0
+	beq WAIT_FOR_INPUT              
 	
 	move.b BUF, %d5					/* 入力された1文字目 (BUF[0]) を d5 に */
-	move.b CURRENT_CHAR, %d6		/* 正解の文字を d6 に */
-	cmp.b %d5, %d6
-	bne TYPING_LOOP_NEXT_CHAR		/* 不正解なら、再度同じ文字をプロンプト */
-
-	* --- 4. 正解した場合 ---
-	cmpi.b #'z', CURRENT_CHAR		/* 'z' だったか？ */
-	beq GAME_FINISHED				/* 'z' ならゲーム終了 */
 	
-	* 'z' でないなら、次の文字へ
-	addq.b #1, CURRENT_CHAR			/* CURRENT_CHAR をインクリメント ('a' -> 'b') */
-	bra TYPING_LOOP_NEXT_CHAR
+    * --- 4b. Enterキー(0x0d)は無視する ---
+    cmpi.b #0x0d, %d5
+    beq WAIT_FOR_INPUT
+	
+	* --- 5. 入力文字をチェック ---
+	lea.l TARGET_STRING, %a0		/* %a0 にベースアドレス */
+	move.l CURRENT_INDEX, %d1		/* %d1 にインデックス */
+	move.b (%a0, %d1.l), %d6		/* ★%d6 = TARGET_STRING[CURRENT_INDEX] (正解の文字) */
+
+	cmp.b %d5, %d6					/* 入力(%d5)と正解(%d6)を比較 */
+	bne WAIT_FOR_INPUT		        /* 不正解なら、次の入力を待つ */
+
+	* --- 6. 正解した場合 ---
+	move.l CURRENT_INDEX, %d1		/* %d1 = 現在のインデックス */
+	addq.l #1, %d1					/* %d1 = 次のインデックス */
+	
+	cmpi.l #TARGET_LEN, %d1			/* ★次のインデックスが文字列の長さか？ */
+	beq GAME_FINISHED				/* 全文字入力完了ならゲーム終了 */
+	
+	* まだ続きがあるなら、次の文字へ
+	move.l %d1, CURRENT_INDEX		/* ★CURRENT_INDEX をインクリメント */
+	bra TYPING_LOOP_NEXT_CHAR       /* 次の文字のプロンプトを表示しに行く */
 
 GAME_FINISHED:
-	* --- 5. 終了処理 ---
+	* --- 7. 終了処理 ---
 	move.l #SYSCALL_NUM_RESET_TIMER, %D0
 	trap #0							/* タイマーを停止 */
 
@@ -750,5 +785,7 @@ GAME_FINISHED:
 WAIT_LOOP:
 	subq.l #1, %d0
 	bne WAIT_LOOP
+	
+	bra MAIN						/* ゲームを最初からやり直す */
 	
 	bra MAIN						/* ゲームを最初からやり直す */

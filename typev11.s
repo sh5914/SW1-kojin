@@ -754,6 +754,9 @@ timer1_interrupt:
 PRINT_NUMBER_W:
 	movem.l %d1-%d3/%a0, -(%sp)  /* d1-d3, a0 を退避 (d0は引数なので退避不要) */
 	move.l  %d0, %d2              /* d2 に元の数値 (16bit) をコピー */
+	swap    %d2             /* [ゴミ, 正解数] -> [正解数, ゴミ] */
+	clr.w   %d2             /* [正解数, ゴミ] -> [正解数, 0] */
+	swap    %d2             /* [正解数, 0]    -> [0, 正解数] */
 	lea.l   NUMBER_BUFFER, %a0    /* a0 をバッファポインタに */
 	move.l  #0, %d1               /* d1 = 桁数カウンタ */
 

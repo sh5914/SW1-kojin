@@ -1008,7 +1008,7 @@ GAME_OVER_HANDLER:
 	
 	* タイムオーバー表示のためのウェイト
 	move.l #0x0FFFFF, %d0
-WAIT_LOOP_2: 
+WAIT_LOOP_2:
 	subq.l #1, %d0
 	bne WAIT_LOOP_2
 	

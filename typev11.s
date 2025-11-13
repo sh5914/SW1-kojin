@@ -991,3 +991,22 @@ WAIT_LOOP_1:
 	bne WAIT_LOOP_1
 	
 	bra MAIN
+
+GAME_OVER_HANDLER:
+	* --- 8. (★追加) タイムオーバー処理 ---
+	move.l #SYSCALL_NUM_RESET_TIMER, %D0
+	trap #0							/* タイマーを停止 */
+	
+	move.l #SYSCALL_NUM_PUTSTRING, %D0
+	move.l #0, %D1
+	move.l #MSG_TIME_OVER, %D2
+	move.l #MSG_TIME_OVER_LEN, %D3
+	trap #0
+	
+	* タイムオーバー表示のためのウェイト
+	move.l #0x0FFFFF, %d0
+WAIT_LOOP_2: 
+	subq.l #1, %d0
+	bne WAIT_LOOP_2
+	
+	bra MAIN						/* MAIN (一番最初) に戻る */

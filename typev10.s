@@ -289,7 +289,7 @@ MSG_START:
 .equ MSG_START_LEN, . - MSG_START
 
 MSG_STAGE_CLEAR:
-	.ascii "\r\nNEXT!\r\n"
+	.ascii "\r\n\r\n"
 .equ MSG_STAGE_CLEAR_LEN, . - MSG_STAGE_CLEAR
 
 MSG_ALL_CLEAR:
@@ -297,7 +297,7 @@ MSG_ALL_CLEAR:
 .equ MSG_ALL_CLEAR_LEN, . - MSG_ALL_CLEAR
 
 MSG_TIME_OVER:
-	.ascii "\r\nTIME OVER! Restarting...\r\n"
+	.ascii "\r\nTIME OVER!\r\n"
 .equ MSG_TIME_OVER_LEN, . - MSG_TIME_OVER
 
 ****************************************************************

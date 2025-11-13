@@ -794,7 +794,7 @@ PRINT_NUMBER_W:
 	move.l  %d1, %d3              /* %d3 に桁数 (d1) をセット */
 	move.l  #SYSCALL_NUM_PUTSTRING, %d0
 	move.l  #0, %d1               /* ch=0 */
-	move.l  #NUMBER_BUFFER, %d2    /* p=NUMBER_BUFFER */
+	move.l  #NUMBER_BUFFER, %d2	/* p=NUMBER_BUFFER */
 	trap #0
 	
 	movem.l (%sp)+, %d1-%d3/%a0  /* 退避したレジスタを復帰 (d0はPUTSTRINGの戻り値) */
@@ -986,7 +986,7 @@ ALL_FINISHED:
 	* --- ★追加ここまで ---
 
 	move.l #0x0FFFFF, %d0
-WAIT_LOOP_1: 
+WAIT_LOOP_1:
 	subq.l #1, %d0
 	bne WAIT_LOOP_1
 	

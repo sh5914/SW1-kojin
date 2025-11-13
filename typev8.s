@@ -1009,6 +1009,11 @@ ALL_FINISHED:
 	* --- 7. 全ステージクリア処理 ---
 	move.l #SYSCALL_NUM_RESET_TIMER, %D0
 	trap #0
+	* ★修正: タイマー割り込みをIMRで完全にマスクする
+	move.w	#0x2700,%SR				/* 割り込み禁止 */
+	move.l	#IMR, %A0
+	ori.l   #0x00000002, (%A0)		/* IMRのTimer1ビットをマスク */
+	move.w	#0x2000,%SR				/* 割り込み許可（レベル0） */
 	jsr SHOW_STATS				/* ★追加: 統計を表示 */
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
@@ -1027,6 +1032,11 @@ GAME_OVER_HANDLER:
 	* --- 8. (★追加) タイムオーバー処理 ---
 	move.l #SYSCALL_NUM_RESET_TIMER, %D0
 	trap #0							/* タイマーを停止 */
+	* ★修正: タイマー割り込みをIMRで完全にマスクする
+	move.w	#0x2700,%SR				/* 割り込み禁止 */
+	move.l	#IMR, %A0
+	ori.l   #0x00000002, (%A0)		/* IMRのTimer1ビットをマスク */
+	move.w	#0x2000,%SR				/* 割り込み許可（レベル0） */
 	jsr SHOW_STATS				/* ★追加: 統計を表示 */
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1

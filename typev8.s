@@ -757,35 +757,34 @@ PRINT_DECIMAL:
 	* (1) もし数値が 0 なら、'0' を1文字だけスタックに積む
 	cmpi.l #0, %d1
 	bne .L_PUSH_DIGITS
-	move.b #'0', -(%sp)			/* '0' をスタックに積む */
+*	move.b #'0', -(%sp)			/* ★バスエラーの原因 */
+	move.w #'0', -(%sp)			/* ★修正: ワードでプッシュ */
 	moveq #1, %d0				/* 桁数を 1 に */
 	bra .L_POP_DIGITS			/* (2) へ進む */
 
 * (1b) 10で割り、余りをスタックに積んでいく (逆順になる)
 .L_PUSH_DIGITS:
-*	divu.l %d2, %d1			/* ★エラーの原因: M68000に存在しない命令 */
-	divu.w %d2, %d1			/* ★修正(1): 32bit / 16bit 除算 (d1 = [Rem|Quot]) */
+*	divu.l %d2, %d1			/* (M68000に存在しない命令) */
+	divu.w %d2, %d1			/* 32bit / 16bit 除算 (d1 = [Rem|Quot]) */
 
-	swap %d1			/* d1 = [Quot|Rem] (剰余を下位ワードに持ってくる) */
-	add.b #'0', %d1			/* '0' を足して ASCIIコードに変換 */
-	move.b %d1, -(%sp)		/* ASCIIコードをスタックに積む */
+	swap %d1			/* d1 = [Quot|Rem] (剰余を下位ワードに) */
+	add.b #'0', %d1			/* ASCIIコードに変換 */
+*	move.b %d1, -(%sp)		/* ★バスエラーの原因 */
+	move.w %d1, -(%sp)		/* ★修正: ワードでプッシュ */
 	addq.l #1, %d0			/* 桁数カウンターを +1 */
-	swap %d1			/* d1 = [Rem|Quot] (商を下位ワードに戻す) */
+	swap %d1			/* d1 = [Rem|Quot] (商を下位ワードに) */
 
-* --- ★修正(2): ここから追加 ---
-*	d1の下位16bit(商)だけを d1.l にセットし、上位を0クリアする
-*	(SHOW_STATS で使っているのと同じテクニック)
-	move.w %d1, %d1
-* --- ★修正(2): ここまで ---
+	move.w %d1, %d1			/* d1.l = 商 (上位16bitを0クリア) */
 
 	cmpi.l #0, %d1			/* 商が 0 になるまでループ */
 	bne .L_PUSH_DIGITS
-	cmpi.l #0, %d1
-	bne .L_PUSH_DIGITS			/* 商が 0 になるまでループ */
+
 
 	* (2) スタックから1文字ずつ取り出し、PUTSTRINGで表示する (逆順が正順になる)
 .L_POP_DIGITS:
-	move.b (%sp)+, PRINT_CHAR	/* スタックから1文字取り出す */
+*	move.b (%sp)+, PRINT_CHAR	/* ★バスエラーの原因 */
+	move.w (%sp)+, %d1		/* ★修正: ワードでポップ */
+	move.b %d1, PRINT_CHAR		/* ★修正: バイトデータを取り出す */
 	
 	movem.l %d0/%d2, -(%sp)		/* ループ用レジスタ (d0, d2) を一時退避 */
 	
@@ -801,7 +800,7 @@ PRINT_DECIMAL:
 	bne .L_POP_DIGITS			/* 0 になるまでループ */
 
 .L_PRINT_DEC_EXIT:
-	movem.l (%sp)+, %d0-%d3		/* 最初に退避した d0-d3 を復帰 */
+	movem.l (%sp)+, %d0-%d3		/* 最初に退避した d0-d3 を復帰 (正しく実行されるはず) */
 	rts
 
 *----------------------------------------------------------------------

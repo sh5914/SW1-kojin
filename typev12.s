@@ -755,9 +755,10 @@ GET_RANDOM_W:
 
 *----------------------------------------------------------------------
 * SHUFFLE_STAGES: STAGE_ORDER 配列 ([0,1,2,3]) をシャッフル
+* (M68000対応版)
 *----------------------------------------------------------------------
 SHUFFLE_STAGES:
-	movem.l	%d0-%d3/%a0, -(%sp)
+	movem.l	%d0-%d3/%a0-%a1, -(%sp)		/* ★a1を追加 */
 	move.w	#3, %d1				/* ループカウンタ i = 3 (3から1まで) */
 
 .L_SHUFFLE_LOOP:
@@ -773,19 +774,32 @@ SHUFFLE_STAGES:
 	swap	%d2					/* d2.w = 剰余 (j) */
 	move.w	%d2, %d3			/* d3.w = j (交換先インデックス) */
 	
-	* --- STAGE_ORDER[i] と STAGE_ORDER[j] を交換 ---
+	* --- ★ここから M68000 用のアドレス計算 ---
+	* --- &STAGE_ORDER[i] と &STAGE_ORDER[j] を計算 ---
 	lea.l	STAGE_ORDER, %a0
-	move.w	(%a0,%d1.w*2), %d0	/* d0 = STAGE_ORDER[i] */
-	move.w	(%a0,%d3.w*2), %d2	/* d2 = STAGE_ORDER[j] */
-	move.w	%d0, (%a0,%d3.w*2)	/* STAGE_ORDER[j] = d0 */
-	move.w	%d2, (%a0,%d1.w*2)	/* STAGE_ORDER[i] = d2 */
+	move.l	%a0, %a1			/* a1 = ベースアドレス */
+	
+	move.l  %d1, %d0            /* d0 = i */
+	asl.l   #1, %d0             /* d0 = i * 2 (バイトオフセット) */
+	add.l   %d0, %a0            /* a0 = &STAGE_ORDER[i] */
+	
+	move.l  %d3, %d0            /* d0 = j */
+	asl.l   #1, %d0             /* d0 = j * 2 (バイトオフセット) */
+	add.l   %d0, %a1            /* a1 = &STAGE_ORDER[j] */
+	
+	* --- STAGE_ORDER[i] と STAGE_ORDER[j] を交換 ---
+	move.w	(%a0), %d0          /* d0 = STAGE_ORDER[i] */
+	move.w	(%a1), %d2          /* d2 = STAGE_ORDER[j] */
+	move.w	%d0, (%a1)          /* STAGE_ORDER[j] = d0 */
+	move.w	%d2, (%a0)          /* STAGE_ORDER[i] = d2 */
+	* --- ★アドレス計算ここまで ---
 
 	* --- ループ制御 ---
 	subq.w	#1, %d1
 	cmpi.w	#1, %d1				/* i が 1 になるまで (i=3, 2, 1) */
 	bge		.L_SHUFFLE_LOOP
 	
-	movem.l	(%sp)+, %d0-%d3/%a0
+	movem.l	(%sp)+, %d0-%d3/%a0-%a1		/* ★a1を追加 */
 	rts
 
 .section .text
@@ -814,8 +828,13 @@ TYPING_GAME_LOOP:
 	* --- 1. シャッフルされたお題テーブルからデータを取得 ---
 	
 	move.l	GAME_LEVEL, %d0		/* d0 = 現在のステージ (0-3) */
+	
+	* --- ★ M68000用オフセット計算 ---
+	asl.l   #1, %d0             /* d0 = (ステージ * 2) (バイトオフセット) */
 	lea.l	STAGE_ORDER, %a0
-	move.w	(%a0,%d0.l*2), %d1	/* d1.w = シャッフルされたインデックス (例: 2) */
+	add.l   %d0, %a0            /* a0 = &STAGE_ORDER[ステージ] */
+	move.w	(%a0), %d1          /* d1.w = シャッフルされたインデックス (例: 2) */
+	* --- ★計算ここまで ---
 
 	* --- d1.w (インデックス) * 12 (テーブルのエントリ長) を計算 ---
 	move.w	%d1, %d0

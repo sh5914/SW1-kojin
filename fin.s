@@ -320,9 +320,9 @@ CURRENT_INDEX:
 GAME_LEVEL:
 	.ds.l 1				/* 現在のステージ番号 (0-3) (4バイト) */
 TIME_REMAINING:
-	.ds.l 1				/* ★追加: ステージの残り秒数 (4バイト) */
+	.ds.l 1				/* ステージの残り秒数 (4バイト) */
 GAME_OVER_FLAG:
-	.ds.b 1				/* ★追加: タイムオーバーフラグ (1 = タイムオーバー) */
+	.ds.b 1				/* タイムオーバーフラグ (1 = タイムオーバー) */
 PRINT_CHAR:
 	.ds.b 1				/* 画面に表示する1文字を格納するバッファ */
 	
@@ -738,12 +738,13 @@ timer1_interrupt:
 .section .text
 .even
 *----------------------------------------------------------------------
-* タイピングゲーム (4ステージ・時間制限付き版)
+* タイプ練習メイン処理 
 *----------------------------------------------------------------------
 
 GAME_ENTRY_POINT:
 	move.l #0, GAME_LEVEL
-  move.l #SYSCALL_NUM_PUTSTRING, %D0
+	* --- ゲーム開始時に一度だけ "START!" メッセージを表示 ---
+  	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
 	move.l #MSG_START, %D2
 	move.l #MSG_START_LEN, %D3
@@ -751,50 +752,51 @@ GAME_ENTRY_POINT:
 	bra TYPING_GAME_LOOP
 
 TYPING_GAME_LOOP:
-	* --- 1. ステージレベルに応じて、お題(%a2, %d4)と時間(%d0)をセット ---
-	move.l GAME_LEVEL, %d0
-	cmpi.l #0, %d0
+	* --- 1. ステージに応じて、お題(%a2, %d4)と時間(%d0)をセット ---
+	move.l GAME_LEVEL, %d0	/* 現在のステージレベルを d0 にロード */
+	cmpi.l #0, %d0			/* ステージ1か？ */
 	beq SET_STAGE_1
-	cmpi.l #1, %d0
+	cmpi.l #1, %d0			/* ステージ2か？ */
 	beq SET_STAGE_2
-	cmpi.l #2, %d0
+	cmpi.l #2, %d0			/* ステージ3か？ */
 	beq SET_STAGE_3
-	bra SET_STAGE_4
+	bra SET_STAGE_4			/* 上記以外ならステージ4へ */
 
 SET_STAGE_1:
 	lea.l TARGET_STRING_1, %a2		/* "hello" (5) */
 	move.l #TARGET_LEN_1, %d4
-	move.l #4, %d0					/* ★制限時間: 5 * 0.8 = 4秒 */
+	move.l #4, %d0					/* 制限時間: 4秒 */
 	bra SET_STAGE_COMMON
 SET_STAGE_2:
 	lea.l TARGET_STRING_2, %a2		/* "world" (5) */
 	move.l #TARGET_LEN_2, %d4
-	move.l #4, %d0					/* ★制限時間: 5 * 0.8 = 4秒 */
+	move.l #4, %d0					/* 制限時間: 4秒 */
 	bra SET_STAGE_COMMON
 SET_STAGE_3:
 	lea.l TARGET_STRING_3, %a2		/* "konnnitiha" (10) */
 	move.l #TARGET_LEN_3, %d4
-	move.l #8, %d0					/* ★制限時間: 10 * 0.8 = 8秒 */
+	move.l #8, %d0					/* 制限時間: 8秒 */
 	bra SET_STAGE_COMMON
 SET_STAGE_4:
-	lea.l TARGET_STRING_4, %a2		/* "m68k" (4) */
+	lea.l TARGET_STRING_4, %a2		/* "arigatougozaimasu" (20) */
 	move.l #TARGET_LEN_4, %d4
-	move.l #16, %d0					/* 制限時間16秒 (切り上げ) */
+	move.l #16, %d0					/* 制限時間: 16秒  */
 
 SET_STAGE_COMMON:
 	* --- 2. ステージの初期化 ---
-	move.l %d0, TIME_REMAINING		/* ★残り時間をセット */
-	move.b #0, GAME_OVER_FLAG		/* ★フラグをリセット */
-	move.l #0, CURRENT_INDEX		/* ★文字インデックスを 0 に */
+	move.l %d0, TIME_REMAINING		/* 残り時間をセット */
+	move.b #0, GAME_OVER_FLAG		/* フラグをリセット */
+	move.l #0, CURRENT_INDEX		/* 文字インデックスを 0 に */
 
-	* --- 2b. お題の表示 ---
-	
+	* --- 2a. お題の表示 ---
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
-	move.l #0, %D1
-	move.l %a2, %D2
-	move.l %d4, %D3
+	move.l #0, %D1					/* ch=0 (UART1) */
+	move.l %a2, %D2					/* p=%a2 (お題文字列のアドレス) */
+	move.l %d4, %D3					/* size=%d4 (お題の長さ) */
 	trap #0
-	
+
+
+	* --- 改行(CR+LF)を送信して、カーソルをお題の下に移動 ---
 	move.b #0x0d, PRINT_CHAR
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
@@ -812,7 +814,7 @@ SET_STAGE_COMMON:
 TYPING_LOOP_NEXT_CHAR:
 	* --- 3. ユーザーの入力を待つ (ポーリング・ループ) ---
 WAIT_FOR_INPUT:
-	* --- 3a. (★追加) タイムオーバーかチェック ---
+	* --- 3a. タイムオーバーかチェック ---
 	move.b GAME_OVER_FLAG, %d0
 	cmpi.b #1, %d0
 	beq GAME_OVER_HANDLER		/* タイムオーバーなら専用ハンドラへ */
@@ -824,64 +826,62 @@ WAIT_FOR_INPUT:
 	move.l #256, %D3
 	trap #0
 	
-	cmpi.l #0, %d0
-	beq WAIT_FOR_INPUT
+	cmpi.l #0, %d0				/* 戻り値 d0 は 0 か？ (0 = 文字がなかった) */
+	beq WAIT_FOR_INPUT			/* 文字がなければ、ループの最初に戻る */
 	
-	move.b BUF, %d5
-    cmpi.b #0x0d, %d5
-    beq WAIT_FOR_INPUT
 	
 	* --- 4. 入力文字をチェック ---
-	move.l CURRENT_INDEX, %d1
-	move.b (%a2, %d1.l), %d6
-	cmp.b %d5, %d6
-	bne WAIT_FOR_INPUT
+	move.l CURRENT_INDEX, %d1	/* d1 = 現在の文字インデックス (例: 0) */
+	move.b (%a2, %d1.l), %d6	/* d6.b = お題の%d1番目の文字 (例: "h") */
+								/* (%a2 + %d1.l のアドレスから1バイト読み込む) */
+	cmp.b %d5, %d6				/* 入力文字(d5) と お題の文字(d6) を比較 */
+	bne WAIT_FOR_INPUT			/* 一致しない (bne) なら、入力を無視してループ先頭へ */
 	
 	* --- 5. 正解した場合 ---
-	move.b %d5, PRINT_CHAR
+	move.b %d5, PRINT_CHAR		/* PRINT_CHAR に正解した文字をセット */
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
 	move.l #PRINT_CHAR, %D2
 	move.l #1, %D3
 	trap #0
 
-	move.l CURRENT_INDEX, %d1
-	addq.l #1, %d1
-	cmp.l %d4, %d1
-	beq STAGE_FINISHED
+	move.l CURRENT_INDEX, %d1	/* d1 = 現在のインデックス */
+	addq.l #1, %d1				/* d1 = d1 + 1 (次のインデックス) */
+	cmp.l %d4, %d1				/* 次のインデックス(d1) と お題の長さ(d4) を比較 */
+	beq STAGE_FINISHED			/* 一致 (beq) なら、ステージクリア */
 	
-	move.l %d1, CURRENT_INDEX
-	bra TYPING_LOOP_NEXT_CHAR
+	move.l %d1, CURRENT_INDEX	/* 次のインデックスを保存 */
+	bra TYPING_LOOP_NEXT_CHAR	/* ループの先頭に戻り、次の文字を待つ */
 
 STAGE_FINISHED:
 	* --- 6. ステージクリア処理 ---
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
-	move.l #MSG_STAGE_CLEAR, %D2
+	move.l #MSG_STAGE_CLEAR, %D2	/* "\r\n\r\n" (2回改行) のアドレス */
 	move.l #MSG_STAGE_CLEAR_LEN, %D3
 	trap #0
 	
-	move.l #0, TIME_REMAINING		/* ★次のステージが始まるまでタイマーを 0 にしておく */
+	move.l #0, TIME_REMAINING		/* 次のステージが始まるまでタイマーを 0 にしておく */
 	
 	move.l GAME_LEVEL, %d0
 	addq.l #1, %d0
-	move.l %d0, GAME_LEVEL
+	move.l %d0, GAME_LEVEL		/*次のステージを保存*/
 	
 	cmpi.l #4, %d0
-	beq ALL_FINISHED
+	beq ALL_FINISHED			/*全ステージクリアしていればステージクリア処理へ*/
 	
-	bra TYPING_GAME_LOOP
+	bra TYPING_GAME_LOOP		/*次のステージがあれば次のステージへ*/
 
 ALL_FINISHED:
 	* --- 7. 全ステージクリア処理 ---
-	move.l #SYSCALL_NUM_RESET_TIMER, %D0
-	trap #0
+	move.l #SYSCALL_NUM_RESET_TIMER, %D0	
+	trap #0									/* タイマーを停止 */
 	
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
-	move.l #MSG_ALL_CLEAR, %D2
+	move.l #MSG_ALL_CLEAR, %D2			/* "FINISH" のアドレス */
 	move.l #MSG_ALL_CLEAR_LEN, %D3
-	trap #0
+	trap #0								/* "FINISH" を表示 */
 	
 	move.l #0x0FFFFF, %d0
 WAIT_LOOP_1: 
@@ -891,15 +891,15 @@ WAIT_LOOP_1:
 	bra MAIN
 
 GAME_OVER_HANDLER:
-	* --- 8. (★追加) タイムオーバー処理 ---
+	* --- 8. タイムオーバー処理 ---
 	move.l #SYSCALL_NUM_RESET_TIMER, %D0
 	trap #0							/* タイマーを停止 */
 	
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1
-	move.l #MSG_TIME_OVER, %D2
+	move.l #MSG_TIME_OVER, %D2		/* "TIME OVER!" のアドレス */
 	move.l #MSG_TIME_OVER_LEN, %D3
-	trap #0
+	trap #0							/* "TIME OVER!" を表示 */
 	
 	move.l #0x0FFFFF, %d0
 WAIT_LOOP_2: 

@@ -745,7 +745,6 @@ timer1_interrupt:
     movem.l (%SP)+, %D0-%D7/%A0-%A6
     rte                     /* 割り込みから復帰 */
 
-(timer1_interrupt ルーチンの直後などに追加)
 
 *----------------------------------------------------------------------
 * PRINT_NUMBER_W: 16ビットの数値 (%d0.w) を10進数文字列として表示
@@ -795,7 +794,7 @@ PRINT_NUMBER_W:
 	move.l  %d1, %d3              /* %d3 に桁数 (d1) をセット */
 	move.l  #SYSCALL_NUM_PUTSTRING, %d0
 	move.l  #0, %d1               /* ch=0 */
-	lea.l   NUMBER_BUFFER, %d2    /* p=NUMBER_BUFFER */
+	move.l  #NUMBER_BUFFER, %d2    /* p=NUMBER_BUFFER */
 	trap #0
 	
 	movem.l (%sp)+, %d1-%d3/%a0  /* 退避したレジスタを復帰 (d0はPUTSTRINGの戻り値) */
@@ -904,9 +903,10 @@ WAIT_FOR_INPUT:
 	move.l CURRENT_INDEX, %d1
 	move.b (%a2, %d1.l), %d6
 	cmp.b %d5, %d6
-	bne WAIT_FOR_INPUT
+	bne HANDLE_ERROR          /*★修正後: エラーハンドラへ分岐*/
 	
 	* --- 5. 正解した場合 ---
+	addi.w #1, CORRECT_COUNT      /*★追加: 正解カウントを+1*/
 	move.b %d5, PRINT_CHAR
 	move.l #SYSCALL_NUM_PUTSTRING, %D0
 	move.l #0, %D1

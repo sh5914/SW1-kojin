@@ -2,12 +2,13 @@
 
 int main(void){
   //int i = 0;
-  //char BUF[256];
+  char BUF[256];
+  printf("Start!\n");
   
   while(1){
-    printf("hello");
-    //scanf("%s", BUF);
-    //printf("You input[%d]:  %s\n", i++, BUF);
+    
+    scanf("%s", BUF);
+    printf("You input: %s \n",BUF);
     }
 
   return 0;

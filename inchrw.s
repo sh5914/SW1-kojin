@@ -1,5 +1,4 @@
 .global inbyte
-.global inkey
 	
 
 .text
@@ -9,11 +8,14 @@
 .equ SYSCALL_NUM_GETSTRING, 1
 	
 inbyte:
+	link   %A6,#-4
 	movem.l	%D1-%D3/%A0,-(%sp)
+	move.l  8(%a6),%D1
+	
 loop:	
 	move.l #SYSCALL_NUM_GETSTRING, %D0
-	move.l #0, %D1 /* ch = 0 */
-	move.l #BUF, %D2 /* p = #BUF */
+	lea    -1(%A6),%A0
+	move.l %A0, %D2
 	move.l #1, %D3 /* size = 256 */
 	trap #0
 	
@@ -21,38 +23,15 @@ loop:
 	cmp #0,%D0
 	beq loop
 
-	lea BUF, %A0
-	move.b (%A0),%D0
+	move.l #0,%D0
+	move.b -1(%A6),%D0
 	
 
 	movem.l	(%sp)+,%D1-%D3/%A0
+	unlk   %A6
 	rts
 
-.section .bss
-BUF:
-	.ds.b 1 /* BUF[256] */
-.even
 
 
-/*inkey:*/
-	/*move.l #SYSCALL_NUM_GETSTRING, %D0*/
-	/*move.l #0, %D1 /* ch = 0 */
-	/*move.l #BUF, %D2 /* p = #BUF */
-	/*move.l #1, %D3 /* size = 256 */
-	/*trap #0*/
-
-	/*tst.l %D0*/
-	/*beq    no_input*/
-
-	/*moveq  #0,%D0*/
-	/*move.l #BUF,%D0*/
-	/*bra    inkey_end*/
-
-
-/*no_input:*/
-	/*move.l  #-1,%D0*/
-
-/*inkey_end:*/
-	/*rts*/
 
 
